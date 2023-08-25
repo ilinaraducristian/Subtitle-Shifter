@@ -1,0 +1,57 @@
+#!/usr/bin/python
+import sys
+
+if len(sys.argv) < 7:
+    print('Usage: \n    sshifter [hours] [minutes] [seconds] [milliseconds] [INPUT_FULE] [OUTPUT_FILE]')
+    print('Example to shift by one minute: \n    sshifter 0 1 0 0 subtitle.srt shiftedSubtitle.srt')
+    exit(0)
+
+hours = int(sys.argv[1])
+minutes = int(sys.argv[2])
+seconds = int(sys.argv[3])
+milliseconds = int(sys.argv[4])
+msToAdd = hours*3600000+minutes*60000+seconds*1000+milliseconds
+
+def timeToMs(time):
+    splitted = time.split(":")
+    secondsAndMilliseconds = splitted[2].split(",")
+    return int(splitted[0])*3600000+int(splitted[1])*60000+int(secondsAndMilliseconds[0])*1000+int(secondsAndMilliseconds[1])
+
+def msToTime(ms):
+    hours = int(ms/3600000)
+    msWithoutHours = ms-hours*3600000
+    minutes = int(msWithoutHours/60000)
+    msWithoutMinutes = msWithoutHours-minutes*60000
+    seconds = int(msWithoutMinutes/1000)
+    milliseconds = msWithoutMinutes-seconds*1000
+    return f'{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}'
+
+def createNewTimestamps(oldTimestamps):
+    splitted = oldTimestamps.split(" --> ")
+    shiftedStartTimestamp = msToTime(timeToMs(splitted[0])+msToAdd)
+    shiftedEndTimestamp = msToTime(timeToMs(splitted[1])+msToAdd)
+    return f'{shiftedStartTimestamp} --> {shiftedEndTimestamp}'
+
+def shiftSubtitles(subtitleLines, shiftedSubtitleFile):
+    while True:
+        number = next(subtitleLines).strip()
+        oldTimestamps = next(subtitleLines).strip()
+        textLine = next(subtitleLines).strip()
+        newTimestamps = createNewTimestamps(oldTimestamps)
+        shiftedSubtitleFile.writelines([f'{number}\n', f'{newTimestamps}\n', f'{textLine}\n'])
+        while True:
+            textLine = next(subtitleLines, None)
+            if textLine == None:
+                return
+            shiftedSubtitleFile.writelines([textLine])
+            if textLine == "\n":
+                break
+
+subtitleFile = open(sys.argv[5], 'r')
+subtitleLines = subtitleFile.readlines()
+subtitleFile.close()
+subtitleLines = iter(subtitleLines)
+
+shiftedSubtitleFile = open(sys.argv[6], 'w')
+shiftSubtitles(subtitleLines, shiftedSubtitleFile)
+shiftedSubtitleFile.close()
